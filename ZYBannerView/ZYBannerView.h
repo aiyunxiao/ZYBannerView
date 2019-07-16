@@ -1,5 +1,6 @@
 //
 //  ZYBannerView.h
+//  DuoBao
 //
 //  Created by 张志延 on 15/10/17.
 //  Copyright (c) 2015年 tongbu. All rights reserved.
@@ -15,22 +16,17 @@
 /** 是否需要循环滚动, 默认为 NO */
 @property (nonatomic, assign) IBInspectable BOOL shouldLoop;
 
-/** 是否显示 footer, 默认为 NO (此属性为 YES 时, shouldLoop 会被置为 NO) */
+/** 是否显示footer, 默认为 NO (此属性为YES时, shouldLoop会被置为NO) */
 @property (nonatomic, assign) IBInspectable BOOL showFooter;
-
+@property (nonatomic, assign) BOOL isFromFuDaoPage;
 /** 是否自动滑动, 默认为 NO */
 @property (nonatomic, assign) IBInspectable BOOL autoScroll;
 
 /** 自动滑动间隔时间(s), 默认为 3.0 */
-@property (nonatomic, assign) IBInspectable CGFloat scrollInterval;
+@property (nonatomic, assign) IBInspectable NSTimeInterval scrollInterval;
 
 /** pageControl, 可自由配置其属性 */
 @property (nonatomic, strong, readonly) UIPageControl *pageControl;
-@property (nonatomic, assign, readwrite)  CGRect pageControlFrame;
-
-/** 当前 item 的 index */
-@property (nonatomic, assign) NSInteger currentIndex;
-- (void)setCurrentIndex:(NSInteger)currentIndex animated:(BOOL)animated;
 
 @property (nonatomic, weak) IBOutlet id<ZYBannerViewDataSource> dataSource;
 @property (nonatomic, weak) IBOutlet id<ZYBannerViewDelegate> delegate;
@@ -39,6 +35,13 @@
 
 - (void)startTimer;
 - (void)stopTimer;
+
+/**
+ 滑动到索引所在的页面
+
+ @param index 索引
+ */
+- (void)scrollViewAtIndex:(NSUInteger)index;
 
 @end
 
@@ -58,7 +61,22 @@
 @optional
 
 - (void)banner:(ZYBannerView *)banner didSelectItemAtIndex:(NSInteger)index;
-- (void)banner:(ZYBannerView *)banner didScrollToItemAtIndex:(NSInteger)index;
 - (void)bannerFooterDidTrigger:(ZYBannerView *)banner;
+
+/**
+ 向左滑动了"pageCount"页
+
+ @param banner self
+ @param pageCount 页数
+ */
+- (void)banner:(ZYBannerView *)banner didScrollToTheLeftWithPageCount:(NSInteger)pageCount;
+
+/**
+ 向右滑动了"pageCount"页
+ 
+ @param banner self
+ @param pageCount 页数
+ */
+- (void)banner:(ZYBannerView *)banner didScrollToTheRightWithPageCount:(NSInteger)pageCount;
 
 @end

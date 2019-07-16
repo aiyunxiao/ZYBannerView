@@ -1,5 +1,6 @@
 //
 //  ZYBannerView.m
+//  DuoBao
 //
 //  Created by 张志延 on 15/10/17.
 //  Copyright (c) 2015年 tongbu. All rights reserved.
@@ -9,7 +10,7 @@
 #import "ZYBannerCell.h"
 
 // 总共的item数
-#define ZY_TOTAL_ITEMS (self.itemCount * 10000)
+#define ZY_TOTAL_ITEMS (self.itemCount * 20000)
 
 #define ZY_FOOTER_WIDTH 64.0
 #define ZY_PAGE_CONTROL_HEIGHT 32.0
@@ -24,6 +25,8 @@
 
 @property (nonatomic, assign) NSInteger itemCount;
 @property (nonatomic, strong) NSTimer *timer;
+
+@property (nonatomic) CGFloat currentOffsetX;
 
 @end
 
@@ -72,10 +75,9 @@ static NSString *banner_footer = @"banner_footer";
     self.flowLayout.itemSize = self.bounds.size;
     self.flowLayout.footerReferenceSize = CGSizeMake(ZY_FOOTER_WIDTH, self.frame.size.height);
     self.collectionView.frame = self.bounds;
-    [self.collectionView reloadData];
     
     // pageControl
-    if (CGRectEqualToRect(self.pageControlFrame, CGRectZero)) {
+    if (CGRectEqualToRect(self.pageControl.frame, CGRectZero)) {
         // 若未对pageControl设置过frame, 则使用以下默认frame
         CGFloat w = self.frame.size.width;
         CGFloat h = ZY_PAGE_CONTROL_HEIGHT;
@@ -83,7 +85,6 @@ static NSString *banner_footer = @"banner_footer";
         CGFloat y = self.frame.size.height - h;
         self.pageControl.frame = CGRectMake(x, y, w, h);
     }
-    [self fixDefaultPosition];
 }
 
 // 配置默认起始位置
@@ -95,40 +96,46 @@ static NSString *banner_footer = @"banner_footer";
     
     if (self.shouldLoop) {
         // 总item数的中间
-        [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:(ZY_TOTAL_ITEMS / 2) inSection:0]
-                                    atScrollPosition:UICollectionViewScrollPositionLeft animated:NO];
-        [self didScrollItemAtIndex:0];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:(ZY_TOTAL_ITEMS / 2) inSection:0]
+                                        atScrollPosition:UICollectionViewScrollPositionLeft animated:NO];
+            self.pageControl.currentPage = 0;
+        });
     } else {
         // 第0个item
-        [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:0 inSection:0]
-                                    atScrollPosition:UICollectionViewScrollPositionLeft animated:NO];
-        [self didScrollItemAtIndex:0];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:0 inSection:0]
+                                        atScrollPosition:UICollectionViewScrollPositionLeft animated:NO];
+            self.pageControl.currentPage = 0;
+        });
     }
 }
 
-- (void)didScrollItemAtIndex:(NSInteger)index
-{
-    self.pageControl.currentPage = index;
-    
-    if ([self.delegate respondsToSelector:@selector(banner:didScrollToItemAtIndex:)]) {
-        [self.delegate banner:self didScrollToItemAtIndex:index];
+- (void)scrollViewAtIndex:(NSUInteger)index {
+    if (index >= self.itemCount) {
+        return;
     }
+    
+    [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:index inSection:0]
+                                atScrollPosition:UICollectionViewScrollPositionLeft animated:YES];
+    
+    self.currentOffsetX = self.collectionView.frame.size.width * index;
 }
+
 
 #pragma mark - Reload
 
 - (void)reloadData
 {
-    if (!self.dataSource) {
+    if (!self.dataSource || self.itemCount == 0) {
         return;
     }
     
     // 设置pageControl总页数
     self.pageControl.numberOfPages = self.itemCount;
-    
+ 
     // 刷新数据
     [self.collectionView reloadData];
-    
     // 开启定时器
     [self startTimer];
 }
@@ -176,20 +183,21 @@ static NSString *banner_footer = @"banner_footer";
                                     atScrollPosition:UICollectionViewScrollPositionLeft
                                             animated:YES];
     } else {
-        if ((currentItem % self.itemCount) == self.itemCount - 1) {
-            // 当前最后一张, 回到第0张
-            [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:0 inSection:0]
-                                        atScrollPosition:UICollectionViewScrollPositionLeft
-                                                animated:YES];
-        } else {
-            // 往下翻页
-            [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:nextItem inSection:0]
-                                        atScrollPosition:UICollectionViewScrollPositionLeft
-                                                animated:YES];
+        if (self.itemCount > 0) {
+            if ((currentItem % self.itemCount) == self.itemCount - 1) {
+                // 当前最后一张, 回到第0张
+                [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:0 inSection:0]
+                                            atScrollPosition:UICollectionViewScrollPositionLeft
+                                                    animated:YES];
+            } else {
+                // 往下翻页
+                [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:nextItem inSection:0]
+                                            atScrollPosition:UICollectionViewScrollPositionLeft
+                                                    animated:YES];
+            }
         }
     }
 }
-
 
 #pragma mark - UICollectionViewDataSource
 
@@ -205,10 +213,15 @@ static NSString *banner_footer = @"banner_footer";
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
 {
     ZYBannerCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:banner_item forIndexPath:indexPath];
- 
     if ([self.dataSource respondsToSelector:@selector(banner:viewForItemAtIndex:)]) {
-        NSInteger convertIndex = self.itemCount > 0 ? indexPath.item % self.itemCount : 0;
-        cell.itemView = [self.dataSource banner:self viewForItemAtIndex:convertIndex];
+        if (self.itemCount > 0) {
+            for (UIView *view in cell.subviews) {
+                [view removeFromSuperview];
+            }
+            UIView *itemView = [self.dataSource banner:self viewForItemAtIndex:indexPath.item % self.itemCount];
+            itemView.frame = cell.bounds;
+            [cell addSubview:itemView];
+        }
     }
     
     return cell;
@@ -244,17 +257,16 @@ static NSString *banner_footer = @"banner_footer";
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
 {
     if ([self.delegate respondsToSelector:@selector(banner:didSelectItemAtIndex:)]) {
-        NSInteger convertIndex = self.itemCount > 0 ? indexPath.item % self.itemCount : 0;
-        [self.delegate banner:self didSelectItemAtIndex:convertIndex];
+        [self.delegate banner:self didSelectItemAtIndex:(indexPath.item % self.itemCount)];
     }
 }
 
 - (void)collectionView:(UICollectionView *)collectionView didEndDisplayingCell:(UICollectionViewCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath
 {
     NSIndexPath *currentIndexPath = [[collectionView indexPathsForVisibleItems] firstObject];
-    if (currentIndexPath) {
-        NSInteger convertIndex = self.itemCount > 0 ? currentIndexPath.item % self.itemCount : 0;
-        [self didScrollItemAtIndex:convertIndex];
+    
+    if (self.itemCount > 0) {
+        self.pageControl.currentPage = currentIndexPath.item % self.itemCount;
     }
 }
 
@@ -272,6 +284,22 @@ static NSString *banner_footer = @"banner_footer";
 {
     // 用户停止滑动的时候开启定时器
     [self startTimer];
+    
+    if (self.currentOffsetX == scrollView.contentOffset.x) {
+        return;
+    }
+    
+    if (self.currentOffsetX > scrollView.contentOffset.x) {
+        if ([self.delegate respondsToSelector:@selector(banner:didScrollToTheLeftWithPageCount:)]) {
+            NSInteger count = (self.currentOffsetX - scrollView.contentOffset.x) / self.collectionView.frame.size.width;
+            [self.delegate banner:self didScrollToTheLeftWithPageCount:count];
+        }
+    } else {
+        if ([self.delegate respondsToSelector:@selector(banner:didScrollToTheRightWithPageCount:)]) {
+            NSInteger count = (scrollView.contentOffset.x - self.currentOffsetX) / self.collectionView.frame.size.width;
+            [self.delegate banner:self didScrollToTheRightWithPageCount:count];
+        }
+    }
 }
 
 #pragma mark footer相关
@@ -356,7 +384,7 @@ static NSString *banner_footer = @"banner_footer";
         // 如果footer存在就不应该有循环滚动
         return NO;
     }
-    if (self.itemCount <= 1) {
+    if (self.itemCount == 1) {
         // 只有一个item也不应该有循环滚动
         return NO;
     }
@@ -399,69 +427,20 @@ static NSString *banner_footer = @"banner_footer";
 /**
  *  自动滑动间隔时间
  */
-- (void)setScrollInterval:(CGFloat)scrollInterval
+- (void)setScrollInterval:(NSTimeInterval)scrollInterval
 {
     _scrollInterval = scrollInterval;
     
     [self startTimer];
 }
 
-- (CGFloat)scrollInterval
+- (NSTimeInterval)scrollInterval
 {
     if (!_scrollInterval) {
         _scrollInterval = 3.0; // default
     }
     return _scrollInterval;
 }
-
-
-/**
- *  重写设置背景颜色
- */
-- (void)setBackgroundColor:(UIColor *)backgroundColor
-{
-    [super setBackgroundColor:backgroundColor];
-    
-    self.collectionView.backgroundColor = backgroundColor;
-}
-
-/**
- *  当前 item 的 index
- */
-- (void)setCurrentIndex:(NSInteger)currentIndex animated:(BOOL)animated
-{
-    if (self.itemCount == 0) {
-        return;
-    }
-    if (self.shouldLoop) {
-        NSIndexPath *oldCurrentIndexPath = [[self.collectionView indexPathsForVisibleItems] firstObject];
-        NSUInteger oldCurrentIndex = oldCurrentIndexPath.item;
-        NSUInteger newCurrentIndex = oldCurrentIndex - oldCurrentIndex % self.itemCount + currentIndex;
-        if(newCurrentIndex >= ZY_TOTAL_ITEMS) {
-            return;
-        }
-        
-        [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:newCurrentIndex inSection:0]
-                                    atScrollPosition:UICollectionViewScrollPositionLeft
-                                            animated:animated];
-        [self didScrollItemAtIndex:newCurrentIndex % self.itemCount];
-    } else {
-        [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:currentIndex inSection:0]
-                                    atScrollPosition:UICollectionViewScrollPositionLeft
-                                            animated:animated];
-        [self didScrollItemAtIndex:currentIndex];
-    }
-}
-- (void)setCurrentIndex:(NSInteger)currentIndex
-{
-    [self setCurrentIndex:currentIndex animated:NO];
-}
-
-- (NSInteger)currentIndex
-{
-    return self.pageControl.currentPage;
-}
-
 
 #pragma mark 控件
 
@@ -476,10 +455,11 @@ static NSString *banner_footer = @"banner_footer";
         _collectionView.alwaysBounceHorizontal = YES; // 小于等于一页时, 允许bounce
         _collectionView.showsHorizontalScrollIndicator = NO;
         _collectionView.scrollsToTop = NO;
-        _collectionView.backgroundColor = [UIColor groupTableViewBackgroundColor];
+        _collectionView.backgroundColor = [UIColor clearColor];
         _collectionView.delegate = self;
         _collectionView.dataSource = self;
-        
+        _collectionView.clipsToBounds = NO;
+
         // 注册cell
         [_collectionView registerClass:[ZYBannerCell class] forCellWithReuseIdentifier:banner_item];
         
@@ -530,13 +510,6 @@ static NSString *banner_footer = @"banner_footer";
         _pageControl.autoresizingMask = UIViewAutoresizingNone;
     }
     return _pageControl;
-}
-
-- (void)setPageControlFrame:(CGRect)pageControlFrame
-{
-    _pageControlFrame = pageControlFrame;
-    
-    self.pageControl.frame = pageControlFrame;
 }
 
 @end
