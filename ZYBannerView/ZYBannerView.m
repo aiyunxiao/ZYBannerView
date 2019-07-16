@@ -85,6 +85,11 @@ static NSString *banner_footer = @"banner_footer";
         CGFloat y = self.frame.size.height - h;
         self.pageControl.frame = CGRectMake(x, y, w, h);
     }
+    
+    // 布局改变后调用代理方法
+    if ([self.delegate respondsToSelector:@selector(banner:didFrameChangedWithCollectionView:)]) {
+        [self.delegate banner:self didFrameChangedWithCollectionView:self.collectionView];
+    }
 }
 
 // 配置默认起始位置
@@ -117,9 +122,9 @@ static NSString *banner_footer = @"banner_footer";
     }
     
     [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:index inSection:0]
-                                atScrollPosition:UICollectionViewScrollPositionLeft animated:YES];
+                                atScrollPosition:UICollectionViewScrollPositionLeft animated:NO];
     
-    self.currentOffsetX = self.collectionView.frame.size.width * index;
+    self.currentOffsetX = self.collectionView.width * index;
 }
 
 
@@ -291,12 +296,12 @@ static NSString *banner_footer = @"banner_footer";
     
     if (self.currentOffsetX > scrollView.contentOffset.x) {
         if ([self.delegate respondsToSelector:@selector(banner:didScrollToTheLeftWithPageCount:)]) {
-            NSInteger count = (self.currentOffsetX - scrollView.contentOffset.x) / self.collectionView.frame.size.width;
+            NSInteger count = (self.currentOffsetX - scrollView.contentOffset.x) / self.collectionView.width;
             [self.delegate banner:self didScrollToTheLeftWithPageCount:count];
         }
     } else {
         if ([self.delegate respondsToSelector:@selector(banner:didScrollToTheRightWithPageCount:)]) {
-            NSInteger count = (scrollView.contentOffset.x - self.currentOffsetX) / self.collectionView.frame.size.width;
+            NSInteger count = (scrollView.contentOffset.x - self.currentOffsetX) / self.collectionView.width;
             [self.delegate banner:self didScrollToTheRightWithPageCount:count];
         }
     }

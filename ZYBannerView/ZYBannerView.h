@@ -79,4 +79,12 @@
  */
 - (void)banner:(ZYBannerView *)banner didScrollToTheRightWithPageCount:(NSInteger)pageCount;
 
+/**
+ 布局进行了改变会调用此代理方法
+
+ @param banner self
+ @param collectionView 内部可滑动的collectionView
+ */
+- (void)banner:(ZYBannerView *)banner didFrameChangedWithCollectionView:(UICollectionView *)collectionView;
+
 @end
