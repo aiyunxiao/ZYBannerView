@@ -124,7 +124,7 @@ static NSString *banner_footer = @"banner_footer";
     [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:index inSection:0]
                                 atScrollPosition:UICollectionViewScrollPositionLeft animated:NO];
     
-    self.currentOffsetX = self.collectionView.width * index;
+    self.currentOffsetX = self.collectionView.frame.size.width * index;
 }
 
 
@@ -296,12 +296,12 @@ static NSString *banner_footer = @"banner_footer";
     
     if (self.currentOffsetX > scrollView.contentOffset.x) {
         if ([self.delegate respondsToSelector:@selector(banner:didScrollToTheLeftWithPageCount:)]) {
-            NSInteger count = (self.currentOffsetX - scrollView.contentOffset.x) / self.collectionView.width;
+            NSInteger count = (self.currentOffsetX - scrollView.contentOffset.x) / self.collectionView.frame.size.width;
             [self.delegate banner:self didScrollToTheLeftWithPageCount:count];
         }
     } else {
         if ([self.delegate respondsToSelector:@selector(banner:didScrollToTheRightWithPageCount:)]) {
-            NSInteger count = (scrollView.contentOffset.x - self.currentOffsetX) / self.collectionView.width;
+            NSInteger count = (scrollView.contentOffset.x - self.currentOffsetX) / self.collectionView.frame.size.width;
             [self.delegate banner:self didScrollToTheRightWithPageCount:count];
         }
     }
